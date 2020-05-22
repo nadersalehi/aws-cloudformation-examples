@@ -1,0 +1,96 @@
+---
+Parameters:
+  EnvType:
+    Description: |
+      The environment the system is being deployed to (prod, qa, etc.)
+    Type: String
+    AllowedValues: [dev, prod, qa]
+
+Mappings:
+  Environment:
+    prod:
+      InstanceType: t2.small
+      DesiredCapacity: 2
+      MinSize: 1
+      MaxSize: 5
+
+    qa:
+      InstanceType: t2.micro
+
+      DesiredCapacity: 1
+      MinSize: 1
+      MaxSize: 2
+
+    dev:
+      InstanceType: t2.nano
+      DesiredCapacity: 1
+      MinSize: 1
+      MaxSize: 1
+
+  AWSRegionArch2AMI:
+    us-east-1:
+      HVM64: ami-0ff8a91507f77f867
+    us-west-2:
+      HVM64: ami-a0cfeed8
+    us-west-1:
+      HVM64: ami-0bdb828fd58c52235
+    us-east-2:
+      HVM64: ami-0b59bfac6be064b78
+
+Conditions:
+  DevEnv: !Equals [!Ref EnvType, dev]
+  ProdEnv: !Equals [!Ref EnvType, prod]
+  QAEnv: !Equals [!Ref EnvType, qa]
+
+Resources:
+  NaderLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !FindInMap [AWSRegionArch2AMI, !Ref 'AWS::Region', HVM64]
+      InstanceType: !FindInMap [Environment, !Ref EnvType, InstanceType]
+      KeyName: EC2 Tutorial
+      SecurityGroups:
+        - !Ref SSHSecurityGroup
+
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: ExampleAutoScalingGroupByNader
+      AvailabilityZones: !If
+        - DevEnv
+        -
+          - !Select
+            - 0
+            - !GetAZs ''
+        - !If
+          - QAEnv
+          -
+            - !Select
+              - 0
+              - !GetAZs ''
+            - !Select
+              - 1
+              - !GetAZs ''
+          - !GetAZs ''
+
+      LaunchConfigurationName: !Ref NaderLaunchConfig
+      DesiredCapacity: !FindInMap [Environment, !Ref EnvType, DesiredCapacity]
+      MinSize: !FindInMap [Environment, !Ref EnvType, MinSize]
+      MaxSize: !FindInMap [Environment, !Ref EnvType, MaxSize]
+      Tags:
+        - Key: Name
+          Value: Auto Generated ASG
+          PropagateAtLaunch: true
+        - Key: StackName
+          Value: AWS::StackName
+          PropagateAtLaunch: true
+
+  SSHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH access via port 22
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
