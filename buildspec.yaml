@@ -7,10 +7,12 @@ phases:
 
     commands:
       - echo "Installing the package ..."
+      - yum install -y yamllint
 
   pre_build:
     commands:
       - echo "Pre-building the package ..."
+      - yamllint **/*.yaml
 
   build:
     commands:
