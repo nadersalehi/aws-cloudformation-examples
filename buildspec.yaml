@@ -3,11 +3,10 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      python: 3.x
+      python: 3.6
 
     commands:
       - echo "Installing the package ..."
-      - yum upgrade -y
       - yum install -y yamllint
 
   pre_build:
